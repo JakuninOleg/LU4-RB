@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { createCronClient } from "@/lib/supabase/cron";
 import { sendTelegramAlert } from "@/lib/notifications/telegram";
 import { sendWebPushAlerts } from "@/lib/notifications/web-push";
 import { shouldNotifyStatus } from "@/lib/notifications/messages";
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const supabase = createServiceClient();
+    const supabase = await createCronClient();
     const { data, error } = await supabase
       .from("raid_bosses")
       .select(
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
       if (shouldNotifyStatus(status)) {
         if (previous !== status) {
           const telegram = await sendTelegramAlert(status, boss.name);
-          const push = await sendWebPushAlerts(status, boss.name);
+          const push = await sendWebPushAlerts(status, boss.name, supabase);
           await supabase
             .from("raid_bosses")
             .update({ last_notified_status: status })

@@ -40,7 +40,8 @@ Cron раз в минуту бьёт `/api/cron/check-respawns` и при пер
 ### Env
 
 ```
-SUPABASE_SERVICE_ROLE_KEY=   # Project Settings → API → service_role
+AUTH_USER=                   # клановый логин (используется и cron)
+AUTH_PASSWORD=
 CRON_SECRET=                 # любой длинный секрет
 TELEGRAM_BOT_TOKEN=          # от @BotFather
 TELEGRAM_CHAT_ID=            # id чата/группы
@@ -48,6 +49,8 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:you@example.com
 ```
+
+Cron входит через `AUTH_USER`/`AUTH_PASSWORD` (service_role не нужен).
 
 ### Telegram
 
