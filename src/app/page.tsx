@@ -15,11 +15,14 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 md:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="surface-panel flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-4 md:px-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">LU4-RB</h1>
+          <p className="text-gold text-xs tracking-[0.28em] uppercase">LU4 · Raid Bosses</p>
+          <h1 className="font-heading brand-glow text-3xl font-semibold tracking-wide">
+            LU4-RB
+          </h1>
           <p className="text-muted-foreground text-sm">
-            Таймеры респауна рейд-боссов
+            Таймеры респауна · {timeZone}
           </p>
         </div>
         <SignOutButton />

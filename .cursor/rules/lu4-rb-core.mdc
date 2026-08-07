@@ -1,0 +1,42 @@
+---
+description: LU4-RB project stack, architecture, and Git Flow
+alwaysApply: true
+---
+
+# LU4-RB — core
+
+Raid boss respawn tracker for Lineage 2 LU4.
+
+## Stack
+
+- Next.js App Router + TypeScript + Tailwind CSS v4
+- shadcn/ui (`base-nova`, Radix) — prefer existing UI components
+- Supabase Auth + Postgres + RLS
+- Deploy on Vercel; PWA-capable (`manifest.webmanifest`)
+
+## Layout
+
+- App code under `src/`
+- Supabase clients: `src/lib/supabase/`
+- Timer logic: `src/lib/timers.ts`
+- DB: `supabase/migrations/`, seed via `supabase/seed.sql`
+
+## Auth
+
+- Shared clan login (email/password) via Supabase Auth
+- Protect routes in `src/proxy.ts` using `getClaims()`
+- Never trust `getSession()` alone for authorization
+
+## Git Flow
+
+- `main` — production
+- `develop` — integration
+- `feature/*` from `develop`, PR into `develop`
+- Release: PR `develop` → `main`
+- Conventional commits: `feat:`, `fix:`, `chore:`
+
+## Secrets
+
+- Never commit `.env`, game account credentials, or service role keys
+- `AUTH_USER` / `AUTH_PASSWORD` are ops-only (shared login); do not bake into client bundles
+- Do not store Excel «Лог/Пасс» columns anywhere in the app

@@ -1,0 +1,25 @@
+---
+description: Raid boss timer domain rules
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Timer domain
+
+Respawn window for a boss with `killed_at`, `respawn_hours` (base), `variance_hours`:
+
+```
+windowStart = killed_at + (base - variance)
+windowEnd   = killed_at + (base + variance)
+```
+
+Statuses:
+
+- `no_timer` — no `killed_at`
+- `waiting` — now < windowStart
+- `possible` — inside window
+- `respawned` — now > windowEnd
+
+Keep calculations in `src/lib/timers.ts`. Display times in `NEXT_PUBLIC_APP_TIMEZONE` (default `Europe/Moscow`).
+
+MVP edits: only `killed_at` / clear timer. Catalog is seeded from CSV; no game login/password fields.

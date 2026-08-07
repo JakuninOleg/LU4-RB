@@ -1,0 +1,16 @@
+---
+description: Prefer shadcn/ui composition patterns
+globs: src/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# shadcn/ui
+
+- Use components from `src/components/ui/` before custom markup
+- Forms: `FieldGroup` + `Field` + `FieldLabel` (not ad-hoc `div` + `Label` stacks)
+- Tables: `Table` primitives; status: `Badge`; feedback: `toast` from `sonner`
+- Overlays: `Dialog` / `Sheet` always include a Title
+- Spacing: `flex` + `gap-*`, never `space-y-*` / `space-x-*`
+- Equal size: `size-*` not `w-* h-*`
+- Style with semantic tokens (`bg-background`, `text-muted-foreground`, `bg-primary`) — avoid raw color utilities unless defining theme tokens
+- Icons: `lucide-react`; in `Button` use `data-icon`, no manual icon size classes

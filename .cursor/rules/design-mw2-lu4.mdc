@@ -1,0 +1,32 @@
+---
+description: Visual direction inspired by MW2 / LU4 sites
+globs: src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# Design (MW2 / LU4)
+
+Dark fantasy game-site feel: deep charcoal/ink backgrounds, warm gold/amber accents, dense data table, strong brand «LU4-RB».
+
+## Do
+
+- Keep dark theme as default (`class="dark"` on `html`)
+- Brand name is hero-level on login and header — not a tiny nav label
+- Expressive display font for brand/headings; readable body font — never default Inter/Roboto/Arial/system stacks
+- Atmosphere via subtle gradients / vignette / grain — not flat single-color pages
+- One job per section; keep the RB table as the main surface after login
+- Mobile-first: horizontal scroll for table OK; keep primary actions reachable
+
+## Don't
+
+- Purple-on-white / purple-indigo AI gradient clichés
+- Warm cream + terracotta newspaper look
+- Card grids in the hero; decorative glow spam; emoji clusters
+- Flat white dashboard chrome that could belong to any SaaS
+
+## Status colors
+
+- Waiting — muted/secondary
+- Possible respawn — amber/gold emphasis
+- Fully respawned — destructive/red
+- No timer — outline/neutral

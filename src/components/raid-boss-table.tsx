@@ -157,8 +157,10 @@ export function RaidBossTable({
       <div className="flex flex-col gap-8">
         {groups.map(([group, rows]) => (
           <section key={group} className="flex flex-col gap-3">
-            <h2 className="text-lg font-medium">РБ {group}</h2>
-            <div className="overflow-x-auto rounded-lg border">
+            <h2 className="font-heading text-xl font-semibold tracking-wide text-gold">
+              РБ {group}
+            </h2>
+            <div className="surface-panel overflow-x-auto rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>

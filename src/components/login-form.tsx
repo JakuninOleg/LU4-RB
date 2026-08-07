@@ -44,10 +44,10 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm border-border/60 bg-card/80 backdrop-blur">
+    <Card className="surface-panel w-full border-primary/25 shadow-[0_20px_60px_oklch(0_0_0/0.45)]">
       <CardHeader>
-        <CardTitle>LU4-RB</CardTitle>
-        <CardDescription>Вход для работы с таймерами РБ</CardDescription>
+        <CardTitle className="font-heading text-xl tracking-wide">Вход</CardTitle>
+        <CardDescription>Общий доступ для работы с таблицей РБ</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit}>
@@ -61,6 +61,7 @@ export function LoginForm() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                className="bg-background/60"
               />
             </Field>
             <Field>
@@ -72,6 +73,7 @@ export function LoginForm() {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                className="bg-background/60"
               />
             </Field>
             {error ? (
@@ -79,7 +81,7 @@ export function LoginForm() {
                 {error}
               </p>
             ) : null}
-            <Button type="submit" disabled={pending} className="w-full">
+            <Button type="submit" disabled={pending} className="w-full font-medium tracking-wide">
               {pending ? "Входим…" : "Войти"}
             </Button>
           </FieldGroup>
