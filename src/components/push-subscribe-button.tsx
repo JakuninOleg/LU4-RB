@@ -16,6 +16,19 @@ function urlBase64ToUint8Array(base64String: string) {
   return output;
 }
 
+async function readErrorMessage(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const data = (await response.json()) as { error?: string };
+    return data.error || `Ошибка ${response.status}`;
+  }
+  const text = await response.text();
+  if (response.status === 401 || response.redirected || text.includes("Вход")) {
+    return "Нужно войти в аккаунт заново";
+  }
+  return `Ошибка ${response.status}`;
+}
+
 export function PushSubscribeButton() {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -24,6 +37,7 @@ export function PushSubscribeButton() {
   useEffect(() => {
     const ok =
       typeof window !== "undefined" &&
+      window.isSecureContext &&
       "serviceWorker" in navigator &&
       "PushManager" in window &&
       !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -31,16 +45,28 @@ export function PushSubscribeButton() {
     if (!ok) return;
 
     void (async () => {
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      const existing = await registration.pushManager.getSubscription();
-      setSubscribed(Boolean(existing));
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+        });
+        await navigator.serviceWorker.ready;
+        const existing = await registration.pushManager.getSubscription();
+        setSubscribed(Boolean(existing));
+      } catch (err) {
+        console.error("SW register failed", err);
+      }
     })();
   }, []);
 
   async function subscribe() {
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!publicKey) {
-      toast.error("VAPID public key не настроен");
+      toast.error("VAPID public key не настроен на сервере");
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      toast.error("Push работает только по HTTPS или localhost");
       return;
     }
 
@@ -48,20 +74,31 @@ export function PushSubscribeButton() {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        toast.error("Разрешите уведомления в браузере");
+        toast.error("Разрешите уведомления в настройках браузера");
         return;
       }
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      const registration = await navigator.serviceWorker.register("/sw.js", {
+        scope: "/",
       });
+      await navigator.serviceWorker.ready;
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+      }
 
       const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        throw new Error("Браузер не вернул ключи подписки");
+      }
+
       const response = await fetch("/api/push/subscribe", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           endpoint: json.endpoint,
@@ -70,14 +107,16 @@ export function PushSubscribeButton() {
       });
 
       if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
-        throw new Error(data.error || "Не удалось сохранить подписку");
+        throw new Error(await readErrorMessage(response));
       }
 
       setSubscribed(true);
       toast.success("Push-уведомления включены");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ошибка подписки");
+      console.error(err);
+      const message =
+        err instanceof Error ? err.message : "Ошибка подписки на push";
+      toast.error(message);
     } finally {
       setPending(false);
     }
@@ -91,6 +130,7 @@ export function PushSubscribeButton() {
       if (subscription) {
         await fetch("/api/push/subscribe", {
           method: "DELETE",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
