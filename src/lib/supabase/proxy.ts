@@ -37,14 +37,15 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname === "/login";
-  const isCronApi = pathname.startsWith("/api/cron/");
+  const isApiRoute = pathname.startsWith("/api/");
   const isPublicAsset =
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/sw.js";
 
-  if (!user && !isLoginPage && !isPublicAsset && !isCronApi) {
+  // API routes return JSON themselves — never redirect them to /login (breaks fetch().json()).
+  if (!user && !isLoginPage && !isPublicAsset && !isApiRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
