@@ -38,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BossGroupSection } from "@/components/boss-group-section";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -276,16 +277,18 @@ export function RaidBossTable({
         </div>
       </div>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4">
         {groups.length === 0 ? (
           <p className="text-muted-foreground text-base">Нет РБ по выбранному фильтру.</p>
         ) : (
           groups.map(([group, rows]) => (
-            <section key={group} className="flex flex-col gap-3">
-              <h2 className="font-heading text-2xl font-semibold tracking-wide">
-                РБ {group}
-              </h2>
-              <div className="bg-card overflow-x-auto rounded-lg border">
+            <BossGroupSection
+              key={group}
+              groupId={group}
+              title={`РБ ${group}`}
+              count={rows.length}
+            >
+              <div className="overflow-x-auto">
                 <Table className="text-base">
                   <TableHeader>
                     <TableRow>
@@ -362,7 +365,7 @@ export function RaidBossTable({
                   </TableBody>
                 </Table>
               </div>
-            </section>
+            </BossGroupSection>
           ))
         )}
       </div>
