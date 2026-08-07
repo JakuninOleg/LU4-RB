@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { createServiceClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { statusAlertText } from "@/lib/notifications/messages";
 import type { BossStatus } from "@/lib/timers";
 
@@ -16,7 +16,11 @@ function configureWebPush() {
   return true;
 }
 
-export async function sendWebPushAlerts(status: BossStatus, bossName: string) {
+export async function sendWebPushAlerts(
+  status: BossStatus,
+  bossName: string,
+  supabase: SupabaseClient,
+) {
   if (!configureWebPush()) {
     return { sent: 0, failed: 0, skipped: true as const, reason: "VAPID env not set" };
   }
@@ -26,7 +30,6 @@ export async function sendWebPushAlerts(status: BossStatus, bossName: string) {
     return { sent: 0, failed: 0, skipped: true as const, reason: "Not an alert status" };
   }
 
-  const supabase = createServiceClient();
   const { data: subscriptions, error } = await supabase
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth");
