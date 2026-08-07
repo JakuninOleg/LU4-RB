@@ -47,13 +47,11 @@ const statusVariant: Record<
   respawned: "destructive",
 };
 
-function formatDateTime(value: Date | string | null, timeZone: string) {
+function formatTime(value: Date | string | null, timeZone: string) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat("ru-RU", {
     timeZone,
-    day: "2-digit",
-    month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
@@ -116,21 +114,22 @@ export function RaidBossTable({
     startTransition(() => router.refresh());
   }
 
-  async function clearKilledAt() {
-    if (!selected) return;
+  async function clearKilledAt(boss: RaidBoss) {
     const supabase = createClient();
     const { error } = await supabase
       .from("raid_bosses")
       .update({ killed_at: null, updated_by: null })
-      .eq("id", selected.id);
+      .eq("id", boss.id);
 
     if (error) {
       toast.error(error.message);
       return;
     }
 
-    toast.success(`Таймер сброшен: ${selected.name}`);
-    setSelected(null);
+    toast.success(`Таймер сброшен: ${boss.name}`);
+    if (selected?.id === boss.id) {
+      setSelected(null);
+    }
     startTransition(() => router.refresh());
   }
 
@@ -154,7 +153,7 @@ export function RaidBossTable({
                     <TableHead className="hidden text-base lg:table-cell">Респ от</TableHead>
                     <TableHead className="hidden text-base lg:table-cell">Респ до</TableHead>
                     <TableHead className="text-base">Охрана</TableHead>
-                    <TableHead className="w-28" />
+                    <TableHead className="w-48" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -177,21 +176,32 @@ export function RaidBossTable({
                           </Badge>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          {formatDateTime(window?.start ?? null, timeZone)}
+                          {formatTime(window?.start ?? null, timeZone)}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          {formatDateTime(window?.end ?? null, timeZone)}
+                          {formatTime(window?.end ?? null, timeZone)}
                         </TableCell>
                         <TableCell>{boss.has_guards ? "Есть" : "Нет"}</TableCell>
                         <TableCell>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditor(boss)}
-                          >
-                            Таймер
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditor(boss)}
+                            >
+                              Таймер
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={pending || !boss.killed_at}
+                              onClick={() => clearKilledAt(boss)}
+                            >
+                              Сбросить
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -228,11 +238,13 @@ export function RaidBossTable({
           <DialogFooter className="gap-2 sm:justify-between">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               disabled={pending || !selected?.killed_at}
-              onClick={clearKilledAt}
+              onClick={() => {
+                if (selected) void clearKilledAt(selected);
+              }}
             >
-              Сбросить
+              Сбросить таймер
             </Button>
             <Button type="button" disabled={pending} onClick={saveKilledAt}>
               Сохранить
