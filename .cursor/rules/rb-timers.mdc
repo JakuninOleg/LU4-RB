@@ -22,4 +22,14 @@ Statuses:
 
 Keep calculations in `src/lib/timers.ts`. Display times in `NEXT_PUBLIC_APP_TIMEZONE` (default `Europe/Moscow`).
 
-MVP edits: only `killed_at` / clear timer. Catalog is seeded from CSV; no game login/password fields.
+MVP edits: `killed_at`, `checked_at` («нет на спавне» → проверен 15 мин), clear timer.
+Catalog is seeded from CSV; no game login/password fields.
+
+Statuses:
+- unverified — нет таймера / проверка старше 15 мин
+- verified — «нет на спавне» в последние 15 мин
+- waiting_far — >1ч до окна
+- waiting_soon — <1ч до окна
+- possible / respawned — внутри / после окна
+
+UI refreshes status every 15s while the tab is open; toast + browser Notification on possible/respawned transitions.

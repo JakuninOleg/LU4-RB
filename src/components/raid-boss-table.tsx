@@ -1,15 +1,25 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { RaidBoss, RespawnStatus } from "@/lib/timers";
-import { getRespawnStatus, getRespawnWindow } from "@/lib/timers";
+import type { BossStatus, RaidBoss } from "@/lib/timers";
+import { getBossStatus, getRespawnWindow } from "@/lib/timers";
 import {
   isoToHourMinute,
   KillTimePicker,
   timeToKilledAtIso,
 } from "@/components/kill-time-picker";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,24 +38,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const statusLabel: Record<RespawnStatus, string> = {
-  no_timer: "Нет таймера",
-  waiting: "Ожидание",
+const statusLabel: Record<BossStatus, string> = {
+  verified: "Проверен",
+  unverified: "Непроверен",
+  waiting_far: "На респе",
+  waiting_soon: "Скоро",
   possible: "Возможно",
   respawned: "Реснулся",
 };
 
-const statusVariant: Record<
-  RespawnStatus,
-  "outline" | "secondary" | "default" | "destructive"
-> = {
-  no_timer: "outline",
-  waiting: "secondary",
-  possible: "default",
-  respawned: "destructive",
+const statusClass: Record<BossStatus, string> = {
+  verified: "border-transparent bg-emerald-600 text-white",
+  unverified: "border-transparent bg-zinc-400 text-white dark:bg-zinc-600",
+  waiting_far: "border-transparent bg-sky-600 text-white",
+  waiting_soon: "border-transparent bg-amber-500 text-white",
+  possible: "border-transparent bg-orange-500 text-white",
+  respawned: "border-transparent bg-red-600 text-white",
 };
+
+const FILTERS: { id: BossStatus | "all"; label: string; className: string }[] = [
+  { id: "all", label: "Все", className: "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900" },
+  { id: "verified", label: "Проверен", className: "bg-emerald-600 text-white" },
+  { id: "waiting_soon", label: "Скоро реснутся", className: "bg-amber-500 text-white" },
+  { id: "waiting_far", label: "На респавне", className: "bg-sky-600 text-white" },
+  { id: "unverified", label: "Непроверенные", className: "bg-zinc-500 text-white" },
+  { id: "possible", label: "Возможно реснулись", className: "bg-orange-500 text-white" },
+  { id: "respawned", label: "Реснулись", className: "bg-red-600 text-white" },
+];
 
 function formatTime(value: Date | string | null, timeZone: string) {
   if (!value) return "—";
@@ -57,6 +79,25 @@ function formatTime(value: Date | string | null, timeZone: string) {
   }).format(date);
 }
 
+function notifyStatusChange(bossName: string, status: BossStatus) {
+  const title =
+    status === "possible"
+      ? "Возможно реснулся"
+      : status === "respawned"
+        ? "100% реснулся"
+        : null;
+  if (!title) return;
+
+  const body = `${bossName}: ${title}`;
+  toast.warning(body);
+
+  if (typeof window !== "undefined" && "Notification" in window) {
+    if (Notification.permission === "granted") {
+      new Notification("LU4-RB", { body, tag: `${bossName}-${status}` });
+    }
+  }
+}
+
 export function RaidBossTable({
   bosses,
   timeZone,
@@ -65,21 +106,67 @@ export function RaidBossTable({
   timeZone: string;
 }) {
   const router = useRouter();
-  const [now] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date());
+  const [filter, setFilter] = useState<BossStatus | "all">("all");
   const [selected, setSelected] = useState<RaidBoss | null>(null);
+  const [resetTarget, setResetTarget] = useState<RaidBoss | null>(null);
   const [hour, setHour] = useState("00");
   const [minute, setMinute] = useState("00");
   const [pending, startTransition] = useTransition();
+  const prevStatusRef = useRef<Map<string, BossStatus>>(new Map());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission === "default") {
+      void Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
+    const nextMap = new Map<string, BossStatus>();
+    for (const boss of bosses) {
+      const status = getBossStatus(boss, now);
+      nextMap.set(boss.id, status);
+      const prev = prevStatusRef.current.get(boss.id);
+      if (
+        prev &&
+        prev !== status &&
+        (status === "possible" || status === "respawned")
+      ) {
+        notifyStatusChange(boss.name, status);
+      }
+    }
+    prevStatusRef.current = nextMap;
+  }, [bosses, now]);
+
+  const filteredBosses = useMemo(() => {
+    if (filter === "all") return bosses;
+    return bosses.filter((boss) => getBossStatus(boss, now) === filter);
+  }, [bosses, filter, now]);
 
   const groups = useMemo(() => {
     const map = new Map<string, RaidBoss[]>();
-    for (const boss of bosses) {
+    for (const boss of filteredBosses) {
       const list = map.get(boss.level_group) ?? [];
       list.push(boss);
       map.set(boss.level_group, list);
     }
     return [...map.entries()];
-  }, [bosses]);
+  }, [filteredBosses]);
+
+  const filterCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: bosses.length };
+    for (const boss of bosses) {
+      const status = getBossStatus(boss, now);
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+    return counts;
+  }, [bosses, now]);
 
   function openEditor(boss: RaidBoss) {
     const parts = isoToHourMinute(boss.killed_at, timeZone);
@@ -100,6 +187,7 @@ export function RaidBossTable({
       .from("raid_bosses")
       .update({
         killed_at: iso,
+        checked_at: null,
         updated_by: user?.id ?? null,
       })
       .eq("id", selected.id);
@@ -114,11 +202,36 @@ export function RaidBossTable({
     startTransition(() => router.refresh());
   }
 
-  async function clearKilledAt(boss: RaidBoss) {
+  async function markNotOnSpawn(boss: RaidBoss) {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error } = await supabase
+      .from("raid_bosses")
+      .update({
+        killed_at: null,
+        checked_at: new Date().toISOString(),
+        updated_by: user?.id ?? null,
+      })
+      .eq("id", boss.id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(`${boss.name}: нет на спавне (проверен 15 мин)`);
+    if (selected?.id === boss.id) setSelected(null);
+    startTransition(() => router.refresh());
+  }
+
+  async function clearTimer(boss: RaidBoss) {
     const supabase = createClient();
     const { error } = await supabase
       .from("raid_bosses")
-      .update({ killed_at: null, updated_by: null })
+      .update({ killed_at: null, checked_at: null, updated_by: null })
       .eq("id", boss.id);
 
     if (error) {
@@ -127,90 +240,131 @@ export function RaidBossTable({
     }
 
     toast.success(`Таймер сброшен: ${boss.name}`);
-    if (selected?.id === boss.id) {
-      setSelected(null);
-    }
+    setResetTarget(null);
+    if (selected?.id === boss.id) setSelected(null);
     startTransition(() => router.refresh());
   }
 
   return (
     <>
+      <div className="flex flex-col gap-3">
+        <p className="text-muted-foreground text-sm">
+          Статусы обновляются автоматически каждые 15 сек — страницу обновлять не нужно.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((item) => {
+            const active = filter === item.id;
+            const count = filterCounts[item.id] ?? 0;
+            return (
+              <Button
+                key={item.id}
+                type="button"
+                size="sm"
+                variant={active ? "default" : "outline"}
+                className={cn(
+                  "border-0",
+                  active ? item.className : "opacity-80",
+                  !active && "hover:opacity-100",
+                )}
+                onClick={() => setFilter(item.id)}
+              >
+                {item.label}
+                <span className="ml-1 opacity-80">({count})</span>
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-8">
-        {groups.map(([group, rows]) => (
-          <section key={group} className="flex flex-col gap-3">
-            <h2 className="font-heading text-2xl font-semibold tracking-wide">
-              РБ {group}
-            </h2>
-            <div className="bg-card overflow-x-auto rounded-lg border">
-              <Table className="text-base">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-base">Lvl</TableHead>
-                    <TableHead className="text-base">Название</TableHead>
-                    <TableHead className="hidden text-base md:table-cell">Локация</TableHead>
-                    <TableHead className="text-base">Таймер</TableHead>
-                    <TableHead className="text-base">Статус</TableHead>
-                    <TableHead className="hidden text-base lg:table-cell">Респ от</TableHead>
-                    <TableHead className="hidden text-base lg:table-cell">Респ до</TableHead>
-                    <TableHead className="text-base">Охрана</TableHead>
-                    <TableHead className="w-48" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((boss) => {
-                    const status = getRespawnStatus(boss, now);
-                    const window = getRespawnWindow(boss);
-                    return (
-                      <TableRow key={boss.id}>
-                        <TableCell>{boss.level}</TableCell>
-                        <TableCell className="font-medium">{boss.name}</TableCell>
-                        <TableCell className="text-muted-foreground hidden max-w-64 truncate md:table-cell">
-                          {boss.location}
-                        </TableCell>
-                        <TableCell>
-                          {boss.respawn_hours}ч ± {boss.variance_hours}ч
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant[status]} className="text-sm">
-                            {statusLabel[status]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {formatTime(window?.start ?? null, timeZone)}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {formatTime(window?.end ?? null, timeZone)}
-                        </TableCell>
-                        <TableCell>{boss.has_guards ? "Есть" : "Нет"}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditor(boss)}
-                            >
-                              Таймер
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              disabled={pending || !boss.killed_at}
-                              onClick={() => clearKilledAt(boss)}
-                            >
-                              Сбросить
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
-        ))}
+        {groups.length === 0 ? (
+          <p className="text-muted-foreground text-base">Нет РБ по выбранному фильтру.</p>
+        ) : (
+          groups.map(([group, rows]) => (
+            <section key={group} className="flex flex-col gap-3">
+              <h2 className="font-heading text-2xl font-semibold tracking-wide">
+                РБ {group}
+              </h2>
+              <div className="bg-card overflow-x-auto rounded-lg border">
+                <Table className="text-base">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-base">Lvl</TableHead>
+                      <TableHead className="text-base">Название</TableHead>
+                      <TableHead className="hidden text-base md:table-cell">Локация</TableHead>
+                      <TableHead className="text-base">Таймер</TableHead>
+                      <TableHead className="text-base">Статус</TableHead>
+                      <TableHead className="hidden text-base lg:table-cell">Респ от</TableHead>
+                      <TableHead className="hidden text-base lg:table-cell">Респ до</TableHead>
+                      <TableHead className="text-base">Охрана</TableHead>
+                      <TableHead className="min-w-56" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((boss) => {
+                      const status = getBossStatus(boss, now);
+                      const window = getRespawnWindow(boss);
+                      return (
+                        <TableRow key={boss.id}>
+                          <TableCell>{boss.level}</TableCell>
+                          <TableCell className="font-medium">{boss.name}</TableCell>
+                          <TableCell className="text-muted-foreground hidden max-w-64 truncate md:table-cell">
+                            {boss.location}
+                          </TableCell>
+                          <TableCell>
+                            {boss.respawn_hours}ч ± {boss.variance_hours}ч
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={cn("text-sm", statusClass[status])}>
+                              {statusLabel[status]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {formatTime(window?.start ?? null, timeZone)}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {formatTime(window?.end ?? null, timeZone)}
+                          </TableCell>
+                          <TableCell>{boss.has_guards ? "Есть" : "Нет"}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-blue-600 text-white hover:bg-blue-700"
+                                onClick={() => openEditor(boss)}
+                              >
+                                Таймер
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-amber-500 text-white hover:bg-amber-600"
+                                disabled={pending}
+                                onClick={() => markNotOnSpawn(boss)}
+                              >
+                                Нет на спавне
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-red-600 text-white hover:bg-red-700"
+                                disabled={pending || (!boss.killed_at && !boss.checked_at)}
+                                onClick={() => setResetTarget(boss)}
+                              >
+                                Сбросить
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+          ))
+        )}
       </div>
 
       <Dialog
@@ -223,7 +377,7 @@ export function RaidBossTable({
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">{selected?.name}</DialogTitle>
             <DialogDescription className="text-base">
-              Укажите час и минуту убийства. Дата подставится автоматически.
+              Укажите час и минуту убийства или отметьте, что босса нет на спавне.
             </DialogDescription>
           </DialogHeader>
           <KillTimePicker
@@ -235,23 +389,67 @@ export function RaidBossTable({
               setMinute(nextMinute);
             }}
           />
-          <DialogFooter className="gap-2 sm:justify-between">
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
               type="button"
-              variant="outline"
-              disabled={pending || !selected?.killed_at}
+              className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+              disabled={pending}
+              onClick={saveKilledAt}
+            >
+              Сохранить время
+            </Button>
+            <Button
+              type="button"
+              className="w-full bg-amber-500 text-white hover:bg-amber-600"
+              disabled={pending || !selected}
               onClick={() => {
-                if (selected) void clearKilledAt(selected);
+                if (selected) void markNotOnSpawn(selected);
+              }}
+            >
+              Нет на спавне
+            </Button>
+            <Button
+              type="button"
+              className="w-full bg-red-600 text-white hover:bg-red-700"
+              disabled={pending || !selected || (!selected.killed_at && !selected.checked_at)}
+              onClick={() => {
+                if (selected) setResetTarget(selected);
               }}
             >
               Сбросить таймер
             </Button>
-            <Button type="button" disabled={pending} onClick={saveKilledAt}>
-              Сохранить
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={resetTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Сбросить таймер?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {resetTarget
+                ? `Вы уверены, что хотите сбросить таймер для ${resetTarget.name}? Статус станет «Непроверен».`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={() => {
+                if (resetTarget) void clearTimer(resetTarget);
+              }}
+            >
+              Да, сбросить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
