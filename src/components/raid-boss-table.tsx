@@ -232,7 +232,7 @@ export function RaidBossTable({
     const supabase = createClient();
     const { error } = await supabase
       .from("raid_bosses")
-      .update({ killed_at: null, checked_at: null, updated_by: null })
+      .update({ killed_at: null, last_notified_status: null, updated_by: null })
       .eq("id", boss.id);
 
     if (error) {
@@ -352,7 +352,7 @@ export function RaidBossTable({
                                 type="button"
                                 size="sm"
                                 className="bg-red-600 text-white hover:bg-red-700"
-                                disabled={pending || (!boss.killed_at && !boss.checked_at)}
+                                disabled={pending || !boss.killed_at}
                                 onClick={() => setResetTarget(boss)}
                               >
                                 Сбросить
@@ -414,7 +414,7 @@ export function RaidBossTable({
             <Button
               type="button"
               className="w-full bg-red-600 text-white hover:bg-red-700"
-              disabled={pending || !selected || (!selected.killed_at && !selected.checked_at)}
+              disabled={pending || !selected?.killed_at}
               onClick={() => {
                 if (selected) setResetTarget(selected);
               }}

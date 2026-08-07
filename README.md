@@ -62,11 +62,16 @@ VAPID_SUBJECT=mailto:you@example.com
 
 ### Cron
 
-На Hobby Vercel cron раз в минуту недоступен. Повесь внешний ping каждую минуту:
+На Hobby Vercel минутный cron недоступен. Настрой внешний ping:
 
-`GET https://lu4-rb.vercel.app/api/cron/check-respawns?secret=CRON_SECRET`
+1. Запусти локально: `python scripts/print_cron_url.py` — скопируй URL  
+2. Зайди на [cron-job.org](https://cron-job.org) → Create cronjob  
+3. **URL** = из скрипта  
+4. **Schedule** = Every minute (`* * * * *`)  
+5. **Request method** = GET  
+6. Save / Enable  
 
-Сервисы: [cron-job.org](https://cron-job.org), EasyCron и т.п.
+Проверка вручную: открой тот же URL в браузере — должен быть JSON `{"ok":true,...}`.
 
 ## Git Flow
 
