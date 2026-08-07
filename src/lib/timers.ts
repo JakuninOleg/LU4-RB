@@ -11,17 +11,26 @@ export type RaidBoss = {
   level_group: string;
   sort_order: number;
   killed_at: string | null;
+  checked_at: string | null;
   updated_at: string;
   updated_by: string | null;
 };
 
-export type RespawnStatus =
-  | "no_timer"
-  | "waiting"
+/** UI / filter statuses */
+export type BossStatus =
+  | "verified"
+  | "unverified"
+  | "waiting_far"
+  | "waiting_soon"
   | "possible"
   | "respawned";
 
-export function getRespawnWindow(boss: Pick<RaidBoss, "killed_at" | "respawn_hours" | "variance_hours">) {
+export const VERIFIED_TTL_MS = 15 * 60 * 1000;
+export const SOON_THRESHOLD_MS = 60 * 60 * 1000;
+
+export function getRespawnWindow(
+  boss: Pick<RaidBoss, "killed_at" | "respawn_hours" | "variance_hours">,
+) {
   if (!boss.killed_at) {
     return null;
   }
@@ -36,21 +45,44 @@ export function getRespawnWindow(boss: Pick<RaidBoss, "killed_at" | "respawn_hou
   };
 }
 
-export function getRespawnStatus(
-  boss: Pick<RaidBoss, "killed_at" | "respawn_hours" | "variance_hours">,
+export function getBossStatus(
+  boss: Pick<RaidBoss, "killed_at" | "checked_at" | "respawn_hours" | "variance_hours">,
   now = new Date(),
-): RespawnStatus {
+): BossStatus {
   const window = getRespawnWindow(boss);
-  if (!window) {
-    return "no_timer";
+  const t = now.getTime();
+
+  if (window) {
+    const untilStart = window.start.getTime() - t;
+    if (untilStart > SOON_THRESHOLD_MS) {
+      return "waiting_far";
+    }
+    if (untilStart > 0) {
+      return "waiting_soon";
+    }
+    if (t <= window.end.getTime()) {
+      return "possible";
+    }
+    return "respawned";
   }
 
-  const t = now.getTime();
-  if (t < window.start.getTime()) {
-    return "waiting";
+  if (boss.checked_at) {
+    const checkedAt = new Date(boss.checked_at).getTime();
+    if (t - checkedAt < VERIFIED_TTL_MS) {
+      return "verified";
+    }
   }
-  if (t <= window.end.getTime()) {
-    return "possible";
-  }
-  return "respawned";
+
+  return "unverified";
+}
+
+/** @deprecated use getBossStatus */
+export type RespawnStatus = BossStatus;
+
+/** @deprecated use getBossStatus */
+export function getRespawnStatus(
+  boss: Pick<RaidBoss, "killed_at" | "checked_at" | "respawn_hours" | "variance_hours">,
+  now = new Date(),
+): BossStatus {
+  return getBossStatus(boss, now);
 }

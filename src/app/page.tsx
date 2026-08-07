@@ -11,7 +11,10 @@ export default async function HomePage() {
     .select("*")
     .order("sort_order", { ascending: true });
 
-  const bosses = (data ?? []) as RaidBoss[];
+  const bosses = ((data ?? []) as RaidBoss[]).map((boss) => ({
+    ...boss,
+    checked_at: boss.checked_at ?? null,
+  }));
   const timeZone = process.env.NEXT_PUBLIC_APP_TIMEZONE || "Europe/Moscow";
 
   return (
