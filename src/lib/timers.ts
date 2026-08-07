@@ -12,6 +12,7 @@ export type RaidBoss = {
   sort_order: number;
   killed_at: string | null;
   checked_at: string | null;
+  last_notified_status: string | null;
   updated_at: string;
   updated_by: string | null;
 };

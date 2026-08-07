@@ -37,12 +37,14 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname === "/login";
+  const isCronApi = pathname.startsWith("/api/cron/");
   const isPublicAsset =
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname === "/manifest.webmanifest";
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js";
 
-  if (!user && !isLoginPage && !isPublicAsset) {
+  if (!user && !isLoginPage && !isPublicAsset && !isCronApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
