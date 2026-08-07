@@ -60,13 +60,13 @@ VAPID_SUBJECT=mailto:you@example.com
 
 На сайте нажми **Push вкл** (после логина) и разреши уведомления в браузере.
 
-### Cron на Hobby
+### Cron
 
-На бесплатном Vercel cron может быть раз в сутки. Тогда повесь внешний ping каждую минуту:
+На Hobby Vercel cron раз в минуту недоступен. Повесь внешний ping каждую минуту:
 
-`https://lu4-rb.vercel.app/api/cron/check-respawns?secret=CRON_SECRET`
+`GET https://lu4-rb.vercel.app/api/cron/check-respawns?secret=CRON_SECRET`
 
-(например [cron-job.org](https://cron-job.org))
+Сервисы: [cron-job.org](https://cron-job.org), EasyCron и т.п.
 
 ## Git Flow
 
