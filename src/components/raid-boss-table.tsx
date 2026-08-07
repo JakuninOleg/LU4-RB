@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { BossStatus, RaidBoss } from "@/lib/timers";
 import { getBossStatus, getRespawnWindow } from "@/lib/timers";
@@ -99,14 +98,23 @@ function notifyStatusChange(bossName: string, status: BossStatus) {
   }
 }
 
+function mergeBoss(prev: RaidBoss, next: Partial<RaidBoss>): RaidBoss {
+  return {
+    ...prev,
+    ...next,
+    checked_at: next.checked_at ?? null,
+    last_notified_status: next.last_notified_status ?? null,
+  };
+}
+
 export function RaidBossTable({
-  bosses,
+  bosses: initialBosses,
   timeZone,
 }: {
   bosses: RaidBoss[];
   timeZone: string;
 }) {
-  const router = useRouter();
+  const [bosses, setBosses] = useState(initialBosses);
   const [now, setNow] = useState(() => new Date());
   const [filter, setFilter] = useState<BossStatus | "all">("all");
   const [selected, setSelected] = useState<RaidBoss | null>(null);
@@ -115,6 +123,10 @@ export function RaidBossTable({
   const [minute, setMinute] = useState("00");
   const [pending, startTransition] = useTransition();
   const prevStatusRef = useRef<Map<string, BossStatus>>(new Map());
+
+  useEffect(() => {
+    setBosses(initialBosses);
+  }, [initialBosses]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 15_000);
@@ -126,6 +138,55 @@ export function RaidBossTable({
     if (Notification.permission === "default") {
       void Notification.requestPermission();
     }
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("raid-bosses-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "raid_bosses" },
+        (payload) => {
+          if (payload.eventType === "UPDATE" && payload.new) {
+            const updated = payload.new as RaidBoss;
+            setBosses((prev) =>
+              prev.map((boss) =>
+                boss.id === updated.id ? mergeBoss(boss, updated) : boss,
+              ),
+            );
+            setSelected((current) =>
+              current?.id === updated.id ? mergeBoss(current, updated) : current,
+            );
+            return;
+          }
+
+          if (payload.eventType === "INSERT" && payload.new) {
+            const inserted = payload.new as RaidBoss;
+            setBosses((prev) => {
+              if (prev.some((boss) => boss.id === inserted.id)) return prev;
+              return [...prev, mergeBoss(inserted, {})].sort(
+                (a, b) => a.sort_order - b.sort_order,
+              );
+            });
+            return;
+          }
+
+          if (payload.eventType === "DELETE" && payload.old) {
+            const removed = payload.old as { id?: string };
+            if (!removed.id) return;
+            setBosses((prev) => prev.filter((boss) => boss.id !== removed.id));
+            setSelected((current) =>
+              current?.id === removed.id ? null : current,
+            );
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -184,13 +245,15 @@ export function RaidBossTable({
       data: { user },
     } = await supabase.auth.getUser();
 
+    const patch = {
+      killed_at: iso,
+      checked_at: null as string | null,
+      updated_by: user?.id ?? null,
+    };
+
     const { error } = await supabase
       .from("raid_bosses")
-      .update({
-        killed_at: iso,
-        checked_at: null,
-        updated_by: user?.id ?? null,
-      })
+      .update(patch)
       .eq("id", selected.id);
 
     if (error) {
@@ -198,9 +261,15 @@ export function RaidBossTable({
       return;
     }
 
+    startTransition(() => {
+      setBosses((prev) =>
+        prev.map((boss) =>
+          boss.id === selected.id ? mergeBoss(boss, patch) : boss,
+        ),
+      );
+    });
     toast.success(`Таймер обновлён: ${selected.name}`);
     setSelected(null);
-    startTransition(() => router.refresh());
   }
 
   async function markNotOnSpawn(boss: RaidBoss) {
@@ -209,13 +278,15 @@ export function RaidBossTable({
       data: { user },
     } = await supabase.auth.getUser();
 
+    const patch = {
+      killed_at: null as string | null,
+      checked_at: new Date().toISOString(),
+      updated_by: user?.id ?? null,
+    };
+
     const { error } = await supabase
       .from("raid_bosses")
-      .update({
-        killed_at: null,
-        checked_at: new Date().toISOString(),
-        updated_by: user?.id ?? null,
-      })
+      .update(patch)
       .eq("id", boss.id);
 
     if (error) {
@@ -223,16 +294,25 @@ export function RaidBossTable({
       return;
     }
 
+    startTransition(() => {
+      setBosses((prev) =>
+        prev.map((row) => (row.id === boss.id ? mergeBoss(row, patch) : row)),
+      );
+    });
     toast.success(`${boss.name}: нет на спавне (проверен 15 мин)`);
     if (selected?.id === boss.id) setSelected(null);
-    startTransition(() => router.refresh());
   }
 
   async function clearTimer(boss: RaidBoss) {
     const supabase = createClient();
+    const patch = {
+      killed_at: null as string | null,
+      last_notified_status: null as string | null,
+      updated_by: null as string | null,
+    };
     const { error } = await supabase
       .from("raid_bosses")
-      .update({ killed_at: null, last_notified_status: null, updated_by: null })
+      .update(patch)
       .eq("id", boss.id);
 
     if (error) {
@@ -240,17 +320,22 @@ export function RaidBossTable({
       return;
     }
 
+    startTransition(() => {
+      setBosses((prev) =>
+        prev.map((row) => (row.id === boss.id ? mergeBoss(row, patch) : row)),
+      );
+    });
     toast.success(`Таймер сброшен: ${boss.name}`);
     setResetTarget(null);
     if (selected?.id === boss.id) setSelected(null);
-    startTransition(() => router.refresh());
   }
 
   return (
     <>
       <div className="flex flex-col gap-3">
         <p className="text-muted-foreground text-sm">
-          Статусы обновляются автоматически каждые 15 сек — страницу обновлять не нужно.
+          Обновления от других игроков приходят сами (Realtime). Статусы
+          пересчитываются каждые 15 сек — F5 не нужен.
         </p>
         <div className="flex flex-wrap gap-2">
           {FILTERS.map((item) => {

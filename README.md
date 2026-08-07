@@ -29,6 +29,7 @@ SQL (если ещё не применяли):
 
 1. `supabase/apply_checked_at.sql`
 2. `supabase/apply_notifications.sql`
+3. `supabase/apply_realtime.sql` — Live-синхронизация таблицы без F5
 
 ## Оповещения (Telegram + Push)
 
