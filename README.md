@@ -10,33 +10,71 @@
 - shadcn/ui
 - Supabase (Auth + Postgres)
 - Деплой: Vercel
+- Оповещения: Telegram Bot + Web Push (Vercel Cron)
 
 ## Быстрый старт
 
 ```bash
 npm install
 cp .env.example .env.local
-# заполните NEXT_PUBLIC_SUPABASE_URL / ANON_KEY
 npm run dev
 ```
 
-В Supabase Auth → URL Configuration добавьте:
+В Supabase Auth → URL Configuration:
 
 - Site URL: `https://lu4-rb.vercel.app`
 - Redirect URLs: `https://lu4-rb.vercel.app/**`, `http://localhost:3000/**`
+
+SQL (если ещё не применяли):
+
+1. `supabase/apply_checked_at.sql`
+2. `supabase/apply_notifications.sql`
+
+## Оповещения (Telegram + Push)
+
+Cron раз в минуту бьёт `/api/cron/check-respawns` и при переходе статуса в **возможно реснулся** / **100% реснулся** шлёт:
+
+- сообщение в Telegram-чат
+- Web Push всем подписанным браузерам
+
+### Env
+
+```
+SUPABASE_SERVICE_ROLE_KEY=   # Project Settings → API → service_role
+CRON_SECRET=                 # любой длинный секрет
+TELEGRAM_BOT_TOKEN=          # от @BotFather
+TELEGRAM_CHAT_ID=            # id чата/группы
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
+```
+
+### Telegram
+
+1. Создай бота у [@BotFather](https://t.me/BotFather) → получи token  
+2. Напиши боту `/start` (или добавь в группу)  
+3. Узнай `chat_id` (например через `@userinfobot` или API `getUpdates`)  
+4. Пропиши `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` в `.env` / Vercel  
+
+### Push
+
+На сайте нажми **Push вкл** (после логина) и разреши уведомления в браузере.
+
+### Cron на Hobby
+
+На бесплатном Vercel cron может быть раз в сутки. Тогда повесь внешний ping каждую минуту:
+
+`https://lu4-rb.vercel.app/api/cron/check-respawns?secret=CRON_SECRET`
+
+(например [cron-job.org](https://cron-job.org))
 
 ## Git Flow
 
 | Ветка | Назначение |
 |-------|------------|
-| `main` | production (Vercel Production) |
-| `develop` | интеграция (Preview) |
+| `main` | production |
+| `develop` | интеграция |
 | `feature/*` | фичи от `develop` |
 | `fix/*` | хотфиксы от `main` |
-
-1. Фичи: `git checkout develop && git checkout -b feature/name`
-2. PR `feature/*` → `develop`
-3. Релиз: PR `develop` → `main`
-4. Hotfix: `fix/*` от `main`, затем влить и в `develop`
 
 Коммиты: Conventional Commits (`feat:`, `fix:`, `chore:`).
