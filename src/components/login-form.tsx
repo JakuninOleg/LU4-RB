@@ -44,10 +44,12 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="surface-panel w-full border-primary/25 shadow-[0_20px_60px_oklch(0_0_0/0.45)]">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle className="font-heading text-xl tracking-wide">Вход</CardTitle>
-        <CardDescription>Общий доступ для работы с таблицей РБ</CardDescription>
+        <CardTitle className="font-heading text-2xl tracking-wide">Вход</CardTitle>
+        <CardDescription className="text-base">
+          Общий доступ для работы с таблицей РБ
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit}>
@@ -61,7 +63,7 @@ export function LoginForm() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="bg-background/60"
+                className="h-12 text-lg"
               />
             </Field>
             <Field>
@@ -73,15 +75,15 @@ export function LoginForm() {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="bg-background/60"
+                className="h-12 text-lg"
               />
             </Field>
             {error ? (
-              <p className="text-destructive text-sm" role="alert">
+              <p className="text-destructive text-base" role="alert">
                 {error}
               </p>
             ) : null}
-            <Button type="submit" disabled={pending} className="w-full font-medium tracking-wide">
+            <Button type="submit" disabled={pending} className="h-12 w-full text-base">
               {pending ? "Входим…" : "Войти"}
             </Button>
           </FieldGroup>

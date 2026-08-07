@@ -1,32 +1,23 @@
 ---
-description: Visual direction inspired by MW2 / LU4 sites
+description: Visual direction — clean light/dark UI
 globs: src/**/*.{tsx,css}
 alwaysApply: false
 ---
 
-# Design (MW2 / LU4)
+# Design
 
-Dark fantasy game-site feel: deep charcoal/ink backgrounds, warm gold/amber accents, dense data table, strong brand «LU4-RB».
+Default is a clean **white/light** UI with optional **dark** theme. Theme preference is stored in `localStorage` key `lu4-rb-theme`.
 
 ## Do
 
-- Keep dark theme as default (`class="dark"` on `html`)
-- Brand name is hero-level on login and header — not a tiny nav label
-- Expressive display font for brand/headings; readable body font — never default Inter/Roboto/Arial/system stacks
-- Atmosphere via subtle gradients / vignette / grain — not flat single-color pages
-- One job per section; keep the RB table as the main surface after login
-- Mobile-first: horizontal scroll for table OK; keep primary actions reachable
+- Light theme by default; dark via toggle (sun/moon)
+- Larger base typography (comfortable on 2K monitors)
+- Brand «LU4-RB» prominent on login and header
+- Keep the RB table as the main surface after login
+- Kill time UI: hour + minute only, plus quick presets (now / 5m / 15m)
 
 ## Don't
 
-- Purple-on-white / purple-indigo AI gradient clichés
-- Warm cream + terracotta newspaper look
-- Card grids in the hero; decorative glow spam; emoji clusters
-- Flat white dashboard chrome that could belong to any SaaS
-
-## Status colors
-
-- Waiting — muted/secondary
-- Possible respawn — amber/gold emphasis
-- Fully respawned — destructive/red
-- No timer — outline/neutral
+- Gold-on-ink fantasy gradients as the default look
+- Purple AI clichés, cream/terracotta newspaper look
+- Full datetime pickers when only clock time is needed

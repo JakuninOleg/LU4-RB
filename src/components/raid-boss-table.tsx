@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { RaidBoss, RespawnStatus } from "@/lib/timers";
 import { getRespawnStatus, getRespawnWindow } from "@/lib/timers";
+import {
+  isoToHourMinute,
+  KillTimePicker,
+  timeToKilledAtIso,
+} from "@/components/kill-time-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -44,30 +47,6 @@ const statusVariant: Record<
   respawned: "destructive",
 };
 
-function toDatetimeLocalValue(iso: string | null, timeZone: string) {
-  const date = iso ? new Date(iso) : new Date();
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
-}
-
-function datetimeLocalToIso(value: string, timeZone: string) {
-  // Europe/Moscow is fixed UTC+3; for other zones fall back to browser local parse.
-  if (timeZone === "Europe/Moscow") {
-    return new Date(`${value}:00+03:00`).toISOString();
-  }
-  return new Date(value).toISOString();
-}
-
 function formatDateTime(value: Date | string | null, timeZone: string) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;
@@ -90,7 +69,8 @@ export function RaidBossTable({
   const router = useRouter();
   const [now] = useState(() => new Date());
   const [selected, setSelected] = useState<RaidBoss | null>(null);
-  const [killedAtLocal, setKilledAtLocal] = useState("");
+  const [hour, setHour] = useState("00");
+  const [minute, setMinute] = useState("00");
   const [pending, startTransition] = useTransition();
 
   const groups = useMemo(() => {
@@ -104,14 +84,16 @@ export function RaidBossTable({
   }, [bosses]);
 
   function openEditor(boss: RaidBoss) {
+    const parts = isoToHourMinute(boss.killed_at, timeZone);
     setSelected(boss);
-    setKilledAtLocal(toDatetimeLocalValue(boss.killed_at, timeZone));
+    setHour(parts.hour);
+    setMinute(parts.minute);
   }
 
   async function saveKilledAt() {
     if (!selected) return;
     const supabase = createClient();
-    const iso = datetimeLocalToIso(killedAtLocal, timeZone);
+    const iso = timeToKilledAtIso(hour, minute, timeZone);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -157,22 +139,22 @@ export function RaidBossTable({
       <div className="flex flex-col gap-8">
         {groups.map(([group, rows]) => (
           <section key={group} className="flex flex-col gap-3">
-            <h2 className="font-heading text-xl font-semibold tracking-wide text-gold">
+            <h2 className="font-heading text-2xl font-semibold tracking-wide">
               РБ {group}
             </h2>
-            <div className="surface-panel overflow-x-auto rounded-lg">
-              <Table>
+            <div className="bg-card overflow-x-auto rounded-lg border">
+              <Table className="text-base">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Lvl</TableHead>
-                    <TableHead>Название</TableHead>
-                    <TableHead className="hidden md:table-cell">Локация</TableHead>
-                    <TableHead>Таймер</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead className="hidden lg:table-cell">Респ от</TableHead>
-                    <TableHead className="hidden lg:table-cell">Респ до</TableHead>
-                    <TableHead>Охрана</TableHead>
-                    <TableHead className="w-24" />
+                    <TableHead className="text-base">Lvl</TableHead>
+                    <TableHead className="text-base">Название</TableHead>
+                    <TableHead className="hidden text-base md:table-cell">Локация</TableHead>
+                    <TableHead className="text-base">Таймер</TableHead>
+                    <TableHead className="text-base">Статус</TableHead>
+                    <TableHead className="hidden text-base lg:table-cell">Респ от</TableHead>
+                    <TableHead className="hidden text-base lg:table-cell">Респ до</TableHead>
+                    <TableHead className="text-base">Охрана</TableHead>
+                    <TableHead className="w-28" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -183,14 +165,14 @@ export function RaidBossTable({
                       <TableRow key={boss.id}>
                         <TableCell>{boss.level}</TableCell>
                         <TableCell className="font-medium">{boss.name}</TableCell>
-                        <TableCell className="text-muted-foreground hidden max-w-56 truncate md:table-cell">
+                        <TableCell className="text-muted-foreground hidden max-w-64 truncate md:table-cell">
                           {boss.location}
                         </TableCell>
                         <TableCell>
                           {boss.respawn_hours}ч ± {boss.variance_hours}ч
                         </TableCell>
                         <TableCell>
-                          <Badge variant={statusVariant[status]}>
+                          <Badge variant={statusVariant[status]} className="text-sm">
                             {statusLabel[status]}
                           </Badge>
                         </TableCell>
@@ -227,25 +209,22 @@ export function RaidBossTable({
           if (!open) setSelected(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{selected?.name}</DialogTitle>
-            <DialogDescription>
-              Время убийства в часовом поясе {timeZone}. Окно респа считается
-              автоматически.
+            <DialogTitle className="font-heading text-2xl">{selected?.name}</DialogTitle>
+            <DialogDescription className="text-base">
+              Укажите час и минуту убийства. Дата подставится автоматически.
             </DialogDescription>
           </DialogHeader>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="killed-at">Время убийства</FieldLabel>
-              <Input
-                id="killed-at"
-                type="datetime-local"
-                value={killedAtLocal}
-                onChange={(event) => setKilledAtLocal(event.target.value)}
-              />
-            </Field>
-          </FieldGroup>
+          <KillTimePicker
+            hour={hour}
+            minute={minute}
+            timeZone={timeZone}
+            onChange={(nextHour, nextMinute) => {
+              setHour(nextHour);
+              setMinute(nextMinute);
+            }}
+          />
           <DialogFooter className="gap-2 sm:justify-between">
             <Button
               type="button"
@@ -255,7 +234,7 @@ export function RaidBossTable({
             >
               Сбросить
             </Button>
-            <Button type="button" disabled={pending || !killedAtLocal} onClick={saveKilledAt}>
+            <Button type="button" disabled={pending} onClick={saveKilledAt}>
               Сохранить
             </Button>
           </DialogFooter>
