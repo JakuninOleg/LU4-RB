@@ -416,92 +416,107 @@ export function RaidBossTable({
               title={`РБ ${group}`}
               count={rows.length}
             >
-              <div className="overflow-x-auto">
-                <Table className="text-base">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-base">Lvl</TableHead>
-                      <TableHead className="text-base">Название</TableHead>
-                      <TableHead className="hidden text-base md:table-cell">Локация</TableHead>
-                      <TableHead className="text-base">Таймер</TableHead>
-                      <TableHead className="text-base">Статус</TableHead>
-                      <TableHead className="hidden text-base lg:table-cell">Респ от</TableHead>
-                      <TableHead className="hidden text-base lg:table-cell">Респ до</TableHead>
-                      <TableHead className="text-base">Охрана</TableHead>
-                      <TableHead className="min-w-72" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((boss) => {
-                      const status = getBossStatus(boss, now);
-                      const window = getRespawnWindow(boss);
-                      return (
-                        <TableRow key={boss.id}>
-                          <TableCell>{boss.level}</TableCell>
-                          <TableCell className="font-medium">{boss.name}</TableCell>
-                          <TableCell className="text-muted-foreground hidden max-w-64 truncate md:table-cell">
-                            {boss.location}
-                          </TableCell>
-                          <TableCell>
-                            {boss.respawn_hours}ч ± {boss.variance_hours}ч
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={cn("text-sm", statusClass[status])}>
-                              {statusLabel[status]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            {formatTime(window?.start ?? null, timeZone)}
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            {formatTime(window?.end ?? null, timeZone)}
-                          </TableCell>
-                          <TableCell>{boss.has_guards ? "Есть" : "Нет"}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="bg-blue-600 text-white hover:bg-blue-700"
-                                onClick={() => openEditor(boss)}
-                              >
-                                Таймер
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="bg-lime-600 text-white hover:bg-lime-700"
-                                disabled={pending}
-                                onClick={() => markAlive(boss)}
-                              >
-                                Живой
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="bg-amber-500 text-white hover:bg-amber-600"
-                                disabled={pending}
-                                onClick={() => markNotOnSpawn(boss)}
-                              >
-                                Нет на спавне
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="bg-red-600 text-white hover:bg-red-700"
-                                disabled={pending || !boss.killed_at}
-                                onClick={() => setResetTarget(boss)}
-                              >
-                                Сбросить
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <Table className="min-w-[1120px] table-fixed text-base">
+                <colgroup>
+                  <col className="w-[52px]" />
+                  <col className="w-[180px]" />
+                  <col className="w-[200px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[110px]" />
+                  <col className="w-[72px]" />
+                  <col className="w-[72px]" />
+                  <col className="w-[64px]" />
+                  <col />
+                </colgroup>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-base">Lvl</TableHead>
+                    <TableHead className="text-base">Название</TableHead>
+                    <TableHead className="text-base">Локация</TableHead>
+                    <TableHead className="text-base">Таймер</TableHead>
+                    <TableHead className="text-base">Статус</TableHead>
+                    <TableHead className="text-base">Респ от</TableHead>
+                    <TableHead className="text-base">Респ до</TableHead>
+                    <TableHead className="text-base">Охрана</TableHead>
+                    <TableHead className="text-base">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((boss) => {
+                    const status = getBossStatus(boss, now);
+                    const window = getRespawnWindow(boss);
+                    return (
+                      <TableRow key={boss.id}>
+                        <TableCell className="tabular-nums">{boss.level}</TableCell>
+                        <TableCell className="max-w-0 truncate font-medium" title={boss.name}>
+                          {boss.name}
+                        </TableCell>
+                        <TableCell
+                          className="text-muted-foreground max-w-0 truncate"
+                          title={boss.location}
+                        >
+                          {boss.location}
+                        </TableCell>
+                        <TableCell className="tabular-nums">
+                          {boss.respawn_hours}ч ± {boss.variance_hours}ч
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={cn("text-sm", statusClass[status])}>
+                            {statusLabel[status]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="tabular-nums">
+                          {formatTime(window?.start ?? null, timeZone)}
+                        </TableCell>
+                        <TableCell className="tabular-nums">
+                          {formatTime(window?.end ?? null, timeZone)}
+                        </TableCell>
+                        <TableCell>{boss.has_guards ? "Есть" : "Нет"}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-nowrap items-center gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="shrink-0 bg-blue-600 px-2.5 text-white hover:bg-blue-700"
+                              onClick={() => openEditor(boss)}
+                            >
+                              Таймер
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="shrink-0 bg-lime-600 px-2.5 text-white hover:bg-lime-700"
+                              disabled={pending}
+                              onClick={() => markAlive(boss)}
+                            >
+                              Живой
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="shrink-0 bg-amber-500 px-2.5 text-white hover:bg-amber-600"
+                              disabled={pending}
+                              title="Нет на спавне"
+                              onClick={() => markNotOnSpawn(boss)}
+                            >
+                              Нет
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="shrink-0 bg-red-600 px-2.5 text-white hover:bg-red-700"
+                              disabled={pending || !boss.killed_at}
+                              onClick={() => setResetTarget(boss)}
+                            >
+                              Сброс
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </BossGroupSection>
           ))
         )}
