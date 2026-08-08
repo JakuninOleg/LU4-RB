@@ -238,7 +238,10 @@ export function RaidBossTable({
   }, [bosses, now]);
 
   function openEditor(boss: RaidBoss) {
-    const parts = isoToHourMinute(boss.killed_at, timeZone);
+    const status = getBossStatus(boss, now);
+    // For possible/respawned the old kill time is stale — default to now for a new kill.
+    const useNow = status === "possible" || status === "respawned" || !boss.killed_at;
+    const parts = isoToHourMinute(useNow ? null : boss.killed_at, timeZone);
     setSelected(boss);
     setHour(parts.hour);
     setMinute(parts.minute);
@@ -256,6 +259,7 @@ export function RaidBossTable({
       killed_at: iso,
       checked_at: null as string | null,
       alive_at: null as string | null,
+      last_notified_status: null as string | null,
       updated_by: user?.id ?? null,
     };
 
@@ -537,7 +541,11 @@ export function RaidBossTable({
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">{selected?.name}</DialogTitle>
             <DialogDescription className="text-base">
-              Укажите время убийства, отметьте «Живой» или «Нет на спавне».
+              {selected &&
+              (getBossStatus(selected, now) === "possible" ||
+                getBossStatus(selected, now) === "respawned")
+                ? "Босс уже в окне респа — укажите время нового убийства (сейчас по умолчанию)."
+                : "Укажите время убийства, отметьте «Живой» или «Нет на спавне»."}
             </DialogDescription>
           </DialogHeader>
           <KillTimePicker
