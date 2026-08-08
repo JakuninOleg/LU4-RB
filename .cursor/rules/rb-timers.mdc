@@ -28,6 +28,7 @@ Statuses:
 
 Priority without timer: alive > verified > unverified.
 Marking alive/verified/timer clears the other sighting fields.
+Opening timer on possible/respawned defaults to now (new kill), not the old killed_at.
 
 UI refreshes status every 15s while the tab is open; toast + browser Notification on possible/respawned transitions.
 Realtime syncs `raid_bosses` updates across clients.
