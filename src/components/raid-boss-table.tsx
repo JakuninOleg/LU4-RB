@@ -416,17 +416,17 @@ export function RaidBossTable({
               title={`РБ ${group}`}
               count={rows.length}
             >
-              <Table className="min-w-[1120px] table-fixed text-base">
+              <Table className="w-full table-fixed text-base">
                 <colgroup>
-                  <col className="w-[52px]" />
-                  <col className="w-[180px]" />
-                  <col className="w-[200px]" />
-                  <col className="w-[100px]" />
-                  <col className="w-[110px]" />
-                  <col className="w-[72px]" />
-                  <col className="w-[72px]" />
-                  <col className="w-[64px]" />
-                  <col />
+                  <col className="w-[4%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[6%]" />
+                  <col className="w-[6%]" />
+                  <col className="w-[5%]" />
+                  <col className="w-[22%]" />
                 </colgroup>
                 <TableHeader>
                   <TableRow>
