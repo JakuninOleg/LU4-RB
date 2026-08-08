@@ -461,7 +461,12 @@ export function RaidBossTable({
                           {boss.respawn_hours}ч ± {boss.variance_hours}ч
                         </TableCell>
                         <TableCell>
-                          <Badge className={cn("text-sm", statusClass[status])}>
+                          <Badge
+                            className={cn(
+                              "w-28 justify-center text-sm",
+                              statusClass[status],
+                            )}
+                          >
                             {statusLabel[status]}
                           </Badge>
                         </TableCell>
