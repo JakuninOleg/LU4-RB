@@ -13,23 +13,21 @@ windowStart = killed_at + (base - variance)
 windowEnd   = killed_at + (base + variance)
 ```
 
-Statuses:
-
-- `no_timer` — no `killed_at`
-- `waiting` — now < windowStart
-- `possible` — inside window
-- `respawned` — now > windowEnd
-
 Keep calculations in `src/lib/timers.ts`. Display times in `NEXT_PUBLIC_APP_TIMEZONE` (default `Europe/Moscow`).
 
-MVP edits: `killed_at`, `checked_at` («нет на спавне» → проверен 15 мин), clear timer.
+MVP edits: `killed_at`, `alive_at` («Живой» 20 мин), `checked_at` («нет на спавне» → проверен 20 мин), clear timer.
 Catalog is seeded from CSV; no game login/password fields.
 
 Statuses:
-- unverified — нет таймера / проверка старше 15 мин
-- verified — «нет на спавне» в последние 15 мин
+- alive — отмечен «Живой» в последние 20 мин
+- verified — «нет на спавне» в последние 20 мин
+- unverified — нет таймера / отметки старше 20 мин
 - waiting_far — >1ч до окна
 - waiting_soon — <1ч до окна
 - possible / respawned — внутри / после окна
 
+Priority without timer: alive > verified > unverified.
+Marking alive/verified/timer clears the other sighting fields.
+
 UI refreshes status every 15s while the tab is open; toast + browser Notification on possible/respawned transitions.
+Realtime syncs `raid_bosses` updates across clients.

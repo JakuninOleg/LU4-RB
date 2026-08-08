@@ -15,6 +15,7 @@ export default async function HomePage() {
   const bosses = ((data ?? []) as RaidBoss[]).map((boss) => ({
     ...boss,
     checked_at: boss.checked_at ?? null,
+    alive_at: boss.alive_at ?? null,
     last_notified_status: boss.last_notified_status ?? null,
   }));
   const timeZone = process.env.NEXT_PUBLIC_APP_TIMEZONE || "Europe/Moscow";
