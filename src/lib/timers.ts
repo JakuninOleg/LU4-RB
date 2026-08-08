@@ -28,11 +28,10 @@ export type BossStatus =
   | "possible"
   | "respawned";
 
-/** «Проверен» and «Живой» both expire after 20 minutes */
+/** «Проверен» expires after 20 minutes; «Живой» stays until another status is set */
 export const CHECK_TTL_MS = 20 * 60 * 1000;
 /** @deprecated use CHECK_TTL_MS */
 export const VERIFIED_TTL_MS = CHECK_TTL_MS;
-export const ALIVE_TTL_MS = CHECK_TTL_MS;
 export const SOON_THRESHOLD_MS = 60 * 60 * 1000;
 
 export function getRespawnWindow(
@@ -81,7 +80,7 @@ export function getBossStatus(
     return "respawned";
   }
 
-  if (isWithinTtl(boss.alive_at, ALIVE_TTL_MS, now)) {
+  if (boss.alive_at) {
     return "alive";
   }
 

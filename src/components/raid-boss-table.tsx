@@ -340,7 +340,7 @@ export function RaidBossTable({
         prev.map((row) => (row.id === boss.id ? mergeBoss(row, patch) : row)),
       );
     });
-    toast.success(`${boss.name}: живой (20 мин)`);
+    toast.success(`${boss.name}: живой`);
     if (selected?.id === boss.id) setSelected(null);
   }
 

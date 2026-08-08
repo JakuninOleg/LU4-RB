@@ -15,11 +15,11 @@ windowEnd   = killed_at + (base + variance)
 
 Keep calculations in `src/lib/timers.ts`. Display times in `NEXT_PUBLIC_APP_TIMEZONE` (default `Europe/Moscow`).
 
-MVP edits: `killed_at`, `alive_at` («Живой» 20 мин), `checked_at` («нет на спавне» → проверен 20 мин), clear timer.
+MVP edits: `killed_at`, `alive_at` («Живой» до смены статуса), `checked_at` («нет на спавне» → проверен 20 мин), clear timer.
 Catalog is seeded from CSV; no game login/password fields.
 
 Statuses:
-- alive — отмечен «Живой» в последние 20 мин
+- alive — отмечен «Живой», держится пока не поставят таймер / проверен / сброс
 - verified — «нет на спавне» в последние 20 мин
 - unverified — нет таймера / отметки старше 20 мин
 - waiting_far — >1ч до окна
