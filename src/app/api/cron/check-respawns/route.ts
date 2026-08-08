@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("raid_bosses")
       .select(
-        "id, name, killed_at, checked_at, respawn_hours, variance_hours, last_notified_status",
+        "id, name, killed_at, checked_at, alive_at, respawn_hours, variance_hours, last_notified_status",
       );
 
     if (error) {
@@ -47,7 +47,13 @@ export async function GET(request: Request) {
     for (const row of data ?? []) {
       const boss = row as Pick<
         RaidBoss,
-        "id" | "name" | "killed_at" | "checked_at" | "respawn_hours" | "variance_hours"
+        | "id"
+        | "name"
+        | "killed_at"
+        | "checked_at"
+        | "alive_at"
+        | "respawn_hours"
+        | "variance_hours"
       > & { last_notified_status: string | null };
 
       const status = getBossStatus(boss, now);

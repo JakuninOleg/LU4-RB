@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const statusLabel: Record<BossStatus, string> = {
+  alive: "Живой",
   verified: "Проверен",
   unverified: "Непроверен",
   waiting_far: "На респе",
@@ -51,6 +52,7 @@ const statusLabel: Record<BossStatus, string> = {
 };
 
 const statusClass: Record<BossStatus, string> = {
+  alive: "border-transparent bg-lime-600 text-white",
   verified: "border-transparent bg-emerald-600 text-white",
   unverified: "border-transparent bg-zinc-400 text-white dark:bg-zinc-600",
   waiting_far: "border-transparent bg-sky-600 text-white",
@@ -61,6 +63,7 @@ const statusClass: Record<BossStatus, string> = {
 
 const FILTERS: { id: BossStatus | "all"; label: string; className: string }[] = [
   { id: "all", label: "Все", className: "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900" },
+  { id: "alive", label: "Живой", className: "bg-lime-600 text-white" },
   { id: "verified", label: "Проверен", className: "bg-emerald-600 text-white" },
   { id: "waiting_soon", label: "Скоро реснутся", className: "bg-amber-500 text-white" },
   { id: "waiting_far", label: "На респавне", className: "bg-sky-600 text-white" },
@@ -102,8 +105,12 @@ function mergeBoss(prev: RaidBoss, next: Partial<RaidBoss>): RaidBoss {
   return {
     ...prev,
     ...next,
-    checked_at: next.checked_at ?? null,
-    last_notified_status: next.last_notified_status ?? null,
+    checked_at: next.checked_at !== undefined ? next.checked_at : prev.checked_at,
+    alive_at: next.alive_at !== undefined ? next.alive_at : prev.alive_at,
+    last_notified_status:
+      next.last_notified_status !== undefined
+        ? next.last_notified_status
+        : prev.last_notified_status,
   };
 }
 
@@ -248,6 +255,7 @@ export function RaidBossTable({
     const patch = {
       killed_at: iso,
       checked_at: null as string | null,
+      alive_at: null as string | null,
       updated_by: user?.id ?? null,
     };
 
@@ -281,6 +289,7 @@ export function RaidBossTable({
     const patch = {
       killed_at: null as string | null,
       checked_at: new Date().toISOString(),
+      alive_at: null as string | null,
       updated_by: user?.id ?? null,
     };
 
@@ -299,7 +308,39 @@ export function RaidBossTable({
         prev.map((row) => (row.id === boss.id ? mergeBoss(row, patch) : row)),
       );
     });
-    toast.success(`${boss.name}: нет на спавне (проверен 15 мин)`);
+    toast.success(`${boss.name}: нет на спавне (проверен 20 мин)`);
+    if (selected?.id === boss.id) setSelected(null);
+  }
+
+  async function markAlive(boss: RaidBoss) {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const patch = {
+      killed_at: null as string | null,
+      checked_at: null as string | null,
+      alive_at: new Date().toISOString(),
+      updated_by: user?.id ?? null,
+    };
+
+    const { error } = await supabase
+      .from("raid_bosses")
+      .update(patch)
+      .eq("id", boss.id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    startTransition(() => {
+      setBosses((prev) =>
+        prev.map((row) => (row.id === boss.id ? mergeBoss(row, patch) : row)),
+      );
+    });
+    toast.success(`${boss.name}: живой (20 мин)`);
     if (selected?.id === boss.id) setSelected(null);
   }
 
@@ -307,6 +348,8 @@ export function RaidBossTable({
     const supabase = createClient();
     const patch = {
       killed_at: null as string | null,
+      checked_at: null as string | null,
+      alive_at: null as string | null,
       last_notified_status: null as string | null,
       updated_by: null as string | null,
     };
@@ -385,7 +428,7 @@ export function RaidBossTable({
                       <TableHead className="hidden text-base lg:table-cell">Респ от</TableHead>
                       <TableHead className="hidden text-base lg:table-cell">Респ до</TableHead>
                       <TableHead className="text-base">Охрана</TableHead>
-                      <TableHead className="min-w-56" />
+                      <TableHead className="min-w-72" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -423,6 +466,15 @@ export function RaidBossTable({
                                 onClick={() => openEditor(boss)}
                               >
                                 Таймер
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="bg-lime-600 text-white hover:bg-lime-700"
+                                disabled={pending}
+                                onClick={() => markAlive(boss)}
+                              >
+                                Живой
                               </Button>
                               <Button
                                 type="button"
@@ -465,7 +517,7 @@ export function RaidBossTable({
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">{selected?.name}</DialogTitle>
             <DialogDescription className="text-base">
-              Укажите час и минуту убийства или отметьте, что босса нет на спавне.
+              Укажите время убийства, отметьте «Живой» или «Нет на спавне».
             </DialogDescription>
           </DialogHeader>
           <KillTimePicker
@@ -485,6 +537,16 @@ export function RaidBossTable({
               onClick={saveKilledAt}
             >
               Сохранить время
+            </Button>
+            <Button
+              type="button"
+              className="w-full bg-lime-600 text-white hover:bg-lime-700"
+              disabled={pending || !selected}
+              onClick={() => {
+                if (selected) void markAlive(selected);
+              }}
+            >
+              Живой
             </Button>
             <Button
               type="button"

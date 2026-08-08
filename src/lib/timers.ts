@@ -12,6 +12,7 @@ export type RaidBoss = {
   sort_order: number;
   killed_at: string | null;
   checked_at: string | null;
+  alive_at: string | null;
   last_notified_status: string | null;
   updated_at: string;
   updated_by: string | null;
@@ -19,6 +20,7 @@ export type RaidBoss = {
 
 /** UI / filter statuses */
 export type BossStatus =
+  | "alive"
   | "verified"
   | "unverified"
   | "waiting_far"
@@ -26,7 +28,11 @@ export type BossStatus =
   | "possible"
   | "respawned";
 
-export const VERIFIED_TTL_MS = 15 * 60 * 1000;
+/** «Проверен» and «Живой» both expire after 20 minutes */
+export const CHECK_TTL_MS = 20 * 60 * 1000;
+/** @deprecated use CHECK_TTL_MS */
+export const VERIFIED_TTL_MS = CHECK_TTL_MS;
+export const ALIVE_TTL_MS = CHECK_TTL_MS;
 export const SOON_THRESHOLD_MS = 60 * 60 * 1000;
 
 export function getRespawnWindow(
@@ -46,8 +52,16 @@ export function getRespawnWindow(
   };
 }
 
+function isWithinTtl(iso: string | null | undefined, ttlMs: number, now: Date) {
+  if (!iso) return false;
+  return now.getTime() - new Date(iso).getTime() < ttlMs;
+}
+
 export function getBossStatus(
-  boss: Pick<RaidBoss, "killed_at" | "checked_at" | "respawn_hours" | "variance_hours">,
+  boss: Pick<
+    RaidBoss,
+    "killed_at" | "checked_at" | "alive_at" | "respawn_hours" | "variance_hours"
+  >,
   now = new Date(),
 ): BossStatus {
   const window = getRespawnWindow(boss);
@@ -67,11 +81,12 @@ export function getBossStatus(
     return "respawned";
   }
 
-  if (boss.checked_at) {
-    const checkedAt = new Date(boss.checked_at).getTime();
-    if (t - checkedAt < VERIFIED_TTL_MS) {
-      return "verified";
-    }
+  if (isWithinTtl(boss.alive_at, ALIVE_TTL_MS, now)) {
+    return "alive";
+  }
+
+  if (isWithinTtl(boss.checked_at, CHECK_TTL_MS, now)) {
+    return "verified";
   }
 
   return "unverified";
@@ -82,7 +97,10 @@ export type RespawnStatus = BossStatus;
 
 /** @deprecated use getBossStatus */
 export function getRespawnStatus(
-  boss: Pick<RaidBoss, "killed_at" | "checked_at" | "respawn_hours" | "variance_hours">,
+  boss: Pick<
+    RaidBoss,
+    "killed_at" | "checked_at" | "alive_at" | "respawn_hours" | "variance_hours"
+  >,
   now = new Date(),
 ): BossStatus {
   return getBossStatus(boss, now);
