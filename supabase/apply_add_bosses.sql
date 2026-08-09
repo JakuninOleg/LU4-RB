@@ -1,0 +1,141 @@
+-- Sync raid boss catalog from CSV (credentials excluded).
+-- Preserves timers: killed_at, checked_at, alive_at, last_notified_status.
+-- Safe to re-run.
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'raid_bosses'
+      and policyname = 'Authenticated users can insert raid bosses'
+  ) then
+    create policy "Authenticated users can insert raid bosses"
+      on public.raid_bosses
+      for insert
+      to authenticated
+      with check (true);
+  end if;
+end $$;
+
+with catalog (
+  level, name, location, respawn_hours, variance_hours,
+  has_guards, wiki_url, notes, level_group, sort_order
+) as (
+  values
+  (20, 'Zombie Lord Ferkel', 'ТП Elven Fortress · вниз по карте к дереву', 6, 2, true, null::text, null::text, '20-24', 0),
+  (20, 'Madness Beast', 'ТП Spider Nest · Направо по карте', 6, 2, true, null::text, null::text, '20-24', 1),
+  (20, 'Discarded Guardian', 'ТП Elven Ruins · В конец данжа', 6, 2, false, null::text, null::text, '20-24', 2),
+  (21, 'Serpent Demon Bifrons', 'ТП Wasteland · Вниз к берегу', 6, 2, true, null::text, null::text, '20-24', 3),
+  (21, 'Sukar Wererat Chief', 'Gludio · Направо к камням', 6, 2, true, null::text, null::text, '20-24', 4),
+  (21, 'Malex Herald of Dagoniel', 'ТП Elven Fortress · В конец данжа', 6, 2, true, null::text, null::text, '20-24', 5),
+  (21, 'Kaysha Herald of Icarus', 'ТП Bloody Swampland/ · /Spider Nest · Бежать в школу', 6, 2, true, null::text, null::text, '20-24', 6),
+  (23, 'Greyclaw Kutus', 'ТП Abandoned Camp · Внутри где-то', 6, 2, true, null::text, null::text, '20-24', 7),
+  (23, 'Tracker Leader Sharuk', 'ТП Fogotten Temple · На гору налево', 6, 2, true, null::text, null::text, '20-24', 8),
+  (23, 'Kuroboros'' Priest', 'ТП Fogotten Temple · На гору налево', 6, 2, true, null::text, null::text, '20-24', 9),
+  (24, 'Unrequited Kael', 'ТП Forgotten Temple · Внутри - вода', 6, 2, true, null::text, null::text, '20-24', 10),
+  (25, 'Pan Dryad', 'ТП Floran Village · Налево', 6, 2, false, null::text, null::text, '25-29', 11),
+  (25, 'Princess Molrang', 'Fellmere Lake?', 6, 2, true, null::text, null::text, '25-29', 12),
+  (25, 'Soul Scavenger', 'ТП Ruins of Agony · Внутри', 6, 2, true, null::text, null::text, '25-29', 13),
+  (25, 'Betrayer of Urutu Freki', 'ТП от Орков на South · На поляне', 6, 2, true, null::text, null::text, '25-29', 14),
+  (25, 'Mammon Collector Talos', 'ТП Eastern Mining Zone · На север', 6, 2, true, null::text, '(перс тайгер)'::text, '25-29', 15),
+  (25, 'Zombie Lord Crowl', 'ТП Ruins of Despair · ?', 6, 2, true, null::text, null::text, '25-29', 16),
+  (25, 'Ikuntai', 'ТП Ruins of Despair · Внутри', 6, 2, true, null::text, null::text, '25-29', 17),
+  (26, 'Tiger Hornet', 'ТП Floran Village · Над Beehive у реки', 6, 2, true, null::text, '(перс маммон)'::text, '25-29', 18),
+  (26, 'Patriarch Kuroboros', 'ТП Forgotten Temple · К воде', 6, 2, false, null::text, null::text, '25-29', 19),
+  (28, 'Tirak', 'ТП Forgotten Temple · Внутри - огонь', 6, 2, true, null::text, null::text, '25-29', 20),
+  (28, 'Partisan Leader Talakin', 'ТП Partisan''s Hideaway · Вниз', 6, 2, false, null::text, null::text, '25-29', 21),
+  (29, 'Elf Renoa', 'ТП ForgottenTemple · На гору', 6, 2, true, null::text, null::text, '25-29', 22),
+  (30, 'Beleth''s Agent, Meana', 'ТП Гиран · На восток', 6, 2, true, null::text, null::text, '30-34', 23),
+  (30, 'Cat''s Eye Bandit', 'ТП Partisan''s Hideaway · Сверху локи', 6, 2, true, null::text, null::text, '30-34', 24),
+  (30, 'Giant Wasteland Basilisk', 'ТП Ant Nest · На гору', 6, 2, true, null::text, null::text, '30-34', 25),
+  (30, 'Turek Mercenary Captain', 'ТП Orc Barracks · В руинах', 6, 2, true, null::text, null::text, '30-34', 26),
+  (30, 'Ragraman', 'ТП Windmill Hill · Направо на дорогу', 6, 2, false, null::text, null::text, '30-34', 27),
+  (30, 'Apepi', 'ТП Field of Silence · В поле', 6, 2, false, null::text, null::text, '30-34', 28),
+  (32, 'Captain of Queen''s Royal Guards', 'ТП Cruma Tower · Право верх', 6, 2, true, null::text, null::text, '30-34', 29),
+  (32, 'Skyla', 'ТП Hardin''s Academy', 6, 2, true, null::text, null::text, '30-34', 30),
+  (33, 'Vuku Grand Seer Gharmash', 'ТП Floran Village · Вниз через реку', 6, 2, true, null::text, null::text, '30-34', 31),
+  (33, 'Nurka''s Messenger', 'ТП Partisan''s Hideaway · Слева локи', 6, 2, false, null::text, null::text, '30-34', 32),
+  (33, 'Corsair Captain Kylon', 'ТП Giran Harbor', 6, 2, true, null::text, null::text, '30-34', 33),
+  (34, 'Stakato Queen Zyrnna', 'ТП Cruma Tower · Левее прошлого', 6, 2, true, null::text, null::text, '30-34', 34),
+  (34, 'Cronos''s Servitor Mumu', 'ТП Field of Whispers', 6, 2, true, null::text, null::text, '30-34', 35),
+  (35, 'Remmel', 'ТП Cruma Marshlands', 6, 2, true, null::text, null::text, '35-39', 36),
+  (35, 'Chertuba of Great Soul', 'ТП Orc Barracks · На платформе', 6, 2, false, null::text, null::text, '35-39', 37),
+  (35, 'Sejarr''s Servitor', 'ТП Giran · Направо', 6, 2, false, null::text, null::text, '35-39', 38),
+  (35, 'Guilotine, Warden of the EG', 'ТП Dion · Пешком в EG · Этот снизу', 6, 2, false, null::text, null::text, '35-39', 39),
+  (35, 'Flame Lord Shadar', 'ТП Partisan''s Hideaway', 6, 2, true, null::text, null::text, '35-39', 40),
+  (35, 'Tasaba Patriarch Hellena', 'ТП Giran · Вниз к развилке', 6, 2, true, null::text, null::text, '35-39', 41),
+  (35, 'Gargoyle Lord Sirocco', 'ТП Ant Nest · В стору кв NPC', 6, 2, true, null::text, null::text, '35-39', 42),
+  (35, 'Red Eye Captain Trakia', 'ТП Partisan''s Hideaway · Лево верх локи', 6, 2, true, null::text, null::text, '35-39', 43),
+  (35, 'Beleth''s Eye', 'ТП Floran Village · Под Monster Race Track', 6, 2, true, null::text, null::text, '35-39', 44),
+  (35, 'Soul Collector Acheron', 'ТП Dion · В EG на горе', 6, 2, true, null::text, null::text, '35-39', 45),
+  (36, 'Sebek', 'ТП Field of Silence · Налево', 6, 2, true, null::text, null::text, '35-39', 46),
+  (36, 'Evil Spirit Tempest', 'ТП Dion · EG Яма', 6, 2, true, null::text, null::text, '35-39', 47),
+  (38, 'Nakondas', 'ТП Giran · На восток в конец', 6, 2, true, null::text, null::text, '35-39', 48),
+  (40, 'Rayito the Looter', 'ТП Cave of Trials · На гору', 7, 2, true, null::text, 'не ставили'::text, '40-44', 49),
+  (40, 'Lizardmen Leader Hellion', 'ТП Cruma Tower · Под куполом', 7, 2, true, null::text, 'не ставили'::text, '40-44', 50),
+  (40, 'Premo Prime', 'ТП Field of Silence · К воде в камнях', 7, 2, false, null::text, 'не ставили'::text, '40-44', 51),
+  (41, 'Nellis'' Vengeful Spirit', 'ТП Eastern Mining Zone · Направо верх до конца', 7, 2, true, null::text, 'не ставили'::text, '40-44', 52),
+  (41, 'Leader of Cat Gang', 'ТП Giran · Направо на полянке', 7, 2, true, null::text, 'не ставили'::text, '40-44', 53),
+  (41, 'Water Spirit Lian', 'ТП Field of Silence', 7, 2, true, null::text, 'не ставили'::text, '40-44', 54),
+  (42, 'Wizard of Storm Teruk', 'ТП Plains of the Lizardmen · Направо', 7, 2, true, null::text, 'не ставили'::text, '40-44', 55),
+  (42, 'Icarus Sample 1', 'ТП Field of Silence · На пляже', 7, 2, true, null::text, 'не ставили'::text, '40-44', 56),
+  (42, 'Leto Chief Talkin', 'ТП Plains of the Lizardmen · Наверх', 7, 2, true, null::text, 'не ставили'::text, '40-44', 57),
+  (42, 'Gwindorr', 'ТП Field of Whispers · Центр', 7, 2, true, null::text, 'не ставили'::text, '40-44', 58),
+  (43, 'Shaman King Selu', 'ТП Oren · На юг', 7, 2, true, null::text, 'не ставили'::text, '40-44', 59),
+  (43, 'Water Couatle Ateka', 'ТП Field of Whispers · На север', 7, 2, true, null::text, 'не ставили'::text, '40-44', 60),
+  (43, 'Fafurion''s Page Sika', 'ТП Heine · На север', 7, 2, true, null::text, 'не ставили'::text, '40-44', 61),
+  (43, 'Road Scavenger Leader', 'ТП Dragon Valley · На юг', 7, 2, true, null::text, 'не ставили'::text, '40-44', 62),
+  (44, 'Retreat Spider Cletu', 'ТП Hunters Village · Направо Направо Направо', 7, 2, true, null::text, 'не ставили'::text, '40-44', 63),
+  (44, 'Crazy Mechanic Golem', 'ТП Ivory Tower · Падать', 7, 2, false, null::text, 'не ставили'::text, '40-44', 64),
+  (44, 'Earth Protector Panathen', 'ТП Alligator Island · Направо сразу', 7, 2, true, null::text, 'не ставили'::text, '40-44', 65),
+  (45, 'Timak Orc Chief Ranger', 'ТП Oren · где Timak Outpost', 8, 2, true, null::text, 'не ставили'::text, '45-49', 66),
+  (45, 'Rotting Tree Repiro', 'ТП Sea of Spores · Наверх справа', 8, 2, true, null::text, 'не ставили'::text, '45-49', 67),
+  (45, 'Dread Avenger Kraven', 'ТП Sea of Spores · Наверх до конца справа', 8, 2, true, null::text, 'не ставили'::text, '45-49', 68),
+  (45, 'Flamestone Golem', 'ТП Ivory Tower · Вниз падать', 8, 2, true, null::text, 'не ставили'::text, '45-49', 69),
+  (46, 'Thief Kelbar', 'ТП Hunter Village · Вниз к катам', 8, 2, true, null::text, 'не ставили'::text, '45-49', 70),
+  (46, 'Beacon of Blue Sky', 'ТП Alligator Island · Наверх лево', 8, 2, true, null::text, 'не ставили'::text, '45-49', 71),
+  (46, 'Shacram', 'ТП Hunter Village · Налево и немного вниз', 8, 2, false, null::text, 'не ставили'::text, '45-49', 72),
+  (46, 'Iron Giant Totem', 'ТП Ivory Tower · Справа (хз низ верх)', 8, 2, true, null::text, 'не ставили'::text, '45-49', 73),
+  (47, 'Archon Suscepter', 'ТП Cruma Tower · 1ый этаж, направо налево', 8, 2, true, null::text, 'не ставили'::text, '45-49', 74),
+  (47, 'Timak Orc Gosmos', 'ТП Oren · где Timak Outpost', 8, 2, false, null::text, 'не ставили'::text, '45-49', 75),
+  (47, 'Evil Spirit Cyrion', 'ТП Hunter Village · налево налево через мостик', 8, 2, true, null::text, 'не ставили'::text, '45-49', 76),
+  (47, 'Fafurion''s Henchman Istary', 'ТП Alligator Island · Направо наверх', 8, 2, true, null::text, 'не ставили'::text, '45-49', 77),
+  (47, 'Tiger King Karuta', 'ТП Dragon Valley · Наверх направо оббегать гору', 8, 2, true, null::text, 'не ставили'::text, '45-49', 78),
+  (48, 'Necrosentinel Royal Guard', 'ТП Dragon Valley · Внутрь налево', 8, 2, true, null::text, 'не ставили'::text, '45-49', 79),
+  (48, 'King Tarlk', 'ТП Ivory Tower · Наверх налево к водопаду', 8, 2, false, null::text, 'не ставили'::text, '45-49', 80),
+  (49, 'Orfen''s Handmaiden', 'ТП Sea of Spores · В конец налево снизу', 8, 2, true, null::text, 'не ставили'::text, '45-49', 81),
+  (49, 'Ketra Commander Atis', 'ТП Ivory Tower · На север направо', 8, 2, true, null::text, 'не ставили'::text, '45-49', 82),
+  (49, 'Mirror of Oblivion', 'ТП Forest of Mirrors · Юго-запад', 8, 2, true, null::text, 'не ставили'::text, '45-49', 83)
+),
+updated as (
+  update public.raid_bosses r
+  set
+    level = c.level,
+    location = c.location,
+    respawn_hours = c.respawn_hours,
+    variance_hours = c.variance_hours,
+    has_guards = c.has_guards,
+    wiki_url = c.wiki_url,
+    notes = c.notes,
+    level_group = c.level_group,
+    sort_order = c.sort_order
+  from catalog c
+  where r.name = c.name
+  returning r.name
+)
+insert into public.raid_bosses (
+  level, name, location, respawn_hours, variance_hours,
+  has_guards, wiki_url, notes, level_group, sort_order
+)
+select
+  c.level, c.name, c.location, c.respawn_hours, c.variance_hours,
+  c.has_guards, c.wiki_url, c.notes, c.level_group, c.sort_order
+from catalog c
+where not exists (
+  select 1 from public.raid_bosses r where r.name = c.name
+);
+
+-- Optional check:
+-- select level_group, count(*) from public.raid_bosses group by 1 order by 1;

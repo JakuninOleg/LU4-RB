@@ -31,6 +31,7 @@ SQL (если ещё не применяли):
 2. `supabase/apply_notifications.sql`
 3. `supabase/apply_realtime.sql` — Live-синхронизация таблицы без F5
 4. `supabase/apply_alive_at.sql` — статус «Живой» (до смены статуса)
+5. `supabase/apply_add_bosses.sql` — синхронизация каталога РБ из CSV (таймеры не трогает)
 
 ## Оповещения (Telegram + Push)
 
